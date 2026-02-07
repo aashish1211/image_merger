@@ -1,0 +1,31 @@
+:root {
+  --bg: #0d0f14;
+  --surface: #161a22;
+  --surface-hover: #1c212c;
+  --border: #2a3142;
+  --text: #e6e9f0;
+  --text-muted: #8b92a8;
+  --accent: #6ee7b7;
+  --accent-dim: #34d399;
+  --danger: #f87171;
+  --radius: 12px;
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
