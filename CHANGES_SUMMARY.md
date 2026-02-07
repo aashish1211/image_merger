@@ -30,3 +30,17 @@ No behavior change. Lint: clean.
   - **Retro**: peach/warm bg `#f5e6d3`, gap 10, borderRadius 6 (vintage/retro).
   - **Modern Light**: white-ish bg `#fafafa`, thin border `#e0e0e0`, gap 4, padding 4, borderRadius 4 (clean modern frames).
 - **`PROJECT_SUMMARY.md`** — Updated template list to include Scrapbook, Moodboard, Retro, Modern Light.
+
+---
+
+## Iteration 3 (project scan refactor)
+
+- **`src/App.jsx`**
+  - **CropSlider**: New reusable component (label, value 0–1, onChange) for the four crop inputs.
+  - **AdjustPanel**: Uses CropSlider × 4; introduced `s`, `patch`, `canCropH`, `canCropV` for readability; all `setImageSetting(index, …)` replaced with `patch({ … })`. Shorter and easier to follow.
+- **`src/ImageMerger.jsx`**
+  - **getSourceRect(img, settings)**: Returns `{ sx, sy, visibleW, visibleH }` from crop/zoom/pan (single place for source-rect math).
+  - **drawImageInCell(ctx, img, sx, sy, visibleW, visibleH, x, y, w, h, isFit)**: Draws image fit or fill in a cell; used by all templates.
+  - **drawOverlapTemplate**, **drawBackgroundTemplate**, **drawMergedCanvas**: Use getSourceRect + drawImageInCell instead of repeating the same logic.
+  - **SingleImagePreview**: Uses getSourceRect for its draw effect; removed duplicated crop/zoom/pan math.
+- No behavior change. Lint clean.
