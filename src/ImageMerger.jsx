@@ -218,6 +218,29 @@ function applyZoomToCropBox(sx0, sy0, sw0, sh0, zoom, zoomOrigin, panX = 0, panY
   return { sx, sy, visibleW, visibleH }
 }
 
+function getSourceRect(img, settings) {
+  const imgW = img.naturalWidth || img.width
+  const imgH = img.naturalHeight || img.height
+  if (!imgW || !imgH) return null
+  const { cropLeft, cropTop, cropRight, cropBottom, zoom, zoomOrigin, panX, panY } = settings
+  const sx0 = cropLeft * imgW
+  const sy0 = cropTop * imgH
+  const sw0 = Math.max(1, (1 - cropLeft - cropRight) * imgW)
+  const sh0 = Math.max(1, (1 - cropTop - cropBottom) * imgH)
+  return applyZoomToCropBox(sx0, sy0, sw0, sh0, zoom, zoomOrigin, panX, panY, imgW, imgH)
+}
+
+function drawImageInCell(ctx, img, sx, sy, visibleW, visibleH, x, y, w, h, isFit) {
+  if (isFit) {
+    ctx.drawImage(img, sx, sy, visibleW, visibleH, x, y, w, h)
+  } else {
+    const scale = Math.max(w / visibleW, h / visibleH)
+    const drawW = visibleW * scale
+    const drawH = visibleH * scale
+    ctx.drawImage(img, sx, sy, visibleW, visibleH, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH)
+  }
+}
+
 export function SingleImagePreview({ url, settings, width = 360, height = 240 }) {
   const canvasRef = useRef(null)
   const [img, setImg] = useState(null)
@@ -236,18 +259,10 @@ export function SingleImagePreview({ url, settings, width = 360, height = 240 })
     if (!img || !canvasRef.current) return
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-    const imgW = img.naturalWidth || img.width
-    const imgH = img.naturalHeight || img.height
-    if (!imgW || !imgH) return
-
     const s = { ...DEFAULT_CROP, ...DEFAULT_ZOOM, ...DEFAULT_PAN, ...settings }
-    const { cropLeft, cropTop, cropRight, cropBottom, zoom, zoomOrigin, panX, panY } = s
-
-    const sx0 = cropLeft * imgW
-    const sy0 = cropTop * imgH
-    const sw0 = Math.max(1, (1 - cropLeft - cropRight) * imgW)
-    const sh0 = Math.max(1, (1 - cropTop - cropBottom) * imgH)
-    const { sx, sy, visibleW, visibleH } = applyZoomToCropBox(sx0, sy0, sw0, sh0, zoom, zoomOrigin, panX, panY, imgW, imgH)
+    const rect = getSourceRect(img, s)
+    if (!rect) return
+    const { sx, sy, visibleW, visibleH } = rect
 
     const w = Math.min(width, MAX_CANVAS_DIMENSION)
     const h = Math.min(height, MAX_CANVAS_DIMENSION)
@@ -278,20 +293,11 @@ function drawOverlapTemplate(ctx, imageElements, safeW, safeH, fitMode, imageSet
 
   for (let i = 0; i < count; i++) {
     const img = imageElements[i]
-    const imgW = img.naturalWidth || img.width
-    const imgH = img.naturalHeight || img.height
-    if (!imgW || !imgH) continue
-
     const settings = { ...DEFAULT_CROP, ...DEFAULT_ZOOM, ...DEFAULT_PAN, ...imageSettings[i] }
-    const imageFitMode = settings.fitMode ?? fitMode
-    const isFit = imageFitMode === 'fit'
-    const { cropLeft, cropTop, cropRight, cropBottom, zoom, zoomOrigin, panX, panY } = settings
-
-    const sx0 = cropLeft * imgW
-    const sy0 = cropTop * imgH
-    const sw0 = Math.max(1, (1 - cropLeft - cropRight) * imgW)
-    const sh0 = Math.max(1, (1 - cropTop - cropBottom) * imgH)
-    const { sx, sy, visibleW, visibleH } = applyZoomToCropBox(sx0, sy0, sw0, sh0, zoom, zoomOrigin, panX, panY, imgW, imgH)
+    const rect = getSourceRect(img, settings)
+    if (!rect) continue
+    const { sx, sy, visibleW, visibleH } = rect
+    const isFit = (settings.fitMode ?? fitMode) === 'fit'
 
     const x = i * offset
     const y = i * offset
@@ -308,14 +314,7 @@ function drawOverlapTemplate(ctx, imageElements, safeW, safeH, fitMode, imageSet
     ctx.beginPath()
     ctx.rect(x, y, w, h)
     ctx.clip()
-    if (isFit) {
-      ctx.drawImage(img, sx, sy, visibleW, visibleH, x, y, w, h)
-    } else {
-      const scale = Math.max(w / visibleW, h / visibleH)
-      const drawW = visibleW * scale
-      const drawH = visibleH * scale
-      ctx.drawImage(img, sx, sy, visibleW, visibleH, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH)
-    }
+    drawImageInCell(ctx, img, sx, sy, visibleW, visibleH, x, y, w, h, isFit)
     ctx.restore()
   }
 }
@@ -364,20 +363,11 @@ function drawBackgroundTemplate(ctx, imageElements, safeW, safeH, layout, colsPe
     const x = col * (cw + gap)
     const y = row * (ch + gap)
 
-    const imgW = img.naturalWidth || img.width
-    const imgH = img.naturalHeight || img.height
-    if (!imgW || !imgH) return
-
     const settings = { ...DEFAULT_CROP, ...DEFAULT_ZOOM, ...DEFAULT_PAN, ...imageSettings[i] }
-    const imageFitMode = settings.fitMode ?? fitMode
-    const isFit = imageFitMode === 'fit'
-    const { cropLeft, cropTop, cropRight, cropBottom, zoom, zoomOrigin, panX, panY } = settings
-
-    const sx0 = cropLeft * imgW
-    const sy0 = cropTop * imgH
-    const sw0 = Math.max(1, (1 - cropLeft - cropRight) * imgW)
-    const sh0 = Math.max(1, (1 - cropTop - cropBottom) * imgH)
-    const { sx, sy, visibleW, visibleH } = applyZoomToCropBox(sx0, sy0, sw0, sh0, zoom, zoomOrigin, panX, panY, imgW, imgH)
+    const rect = getSourceRect(img, settings)
+    if (!rect) return
+    const { sx, sy, visibleW, visibleH } = rect
+    const isFit = (settings.fitMode ?? fitMode) === 'fit'
 
     const innerX = x + padding
     const innerY = y + padding
@@ -403,13 +393,7 @@ function drawBackgroundTemplate(ctx, imageElements, safeW, safeH, layout, colsPe
         roundRect(innerX, innerY, innerW, innerH, Math.max(0, radius - 4))
         ctx.clip()
       }
-      if (isFit) ctx.drawImage(img, sx, sy, visibleW, visibleH, innerX, innerY, innerW, innerH)
-      else {
-        const scale = Math.max(innerW / visibleW, innerH / visibleH)
-        const dw = visibleW * scale
-        const dh = visibleH * scale
-        ctx.drawImage(img, sx, sy, visibleW, visibleH, innerX + (innerW - dw) / 2, innerY + (innerH - dh) / 2, dw, dh)
-      }
+      drawImageInCell(ctx, img, sx, sy, visibleW, visibleH, innerX, innerY, innerW, innerH, isFit)
       if (roundRect && radius > 0) ctx.restore()
     }
     ctx.restore()
@@ -460,21 +444,11 @@ function drawMergedCanvas(canvas, imageElements, width, height, layout, colsPerR
     const x = col * (cellWidth + gap)
     const y = row * (cellHeight + gap)
 
-    const imgW = img.naturalWidth || img.width
-    const imgH = img.naturalHeight || img.height
-    if (!imgW || !imgH) return
-
     const settings = { ...DEFAULT_CROP, ...DEFAULT_ZOOM, ...DEFAULT_PAN, ...imageSettings[i] }
-    const { cropLeft, cropTop, cropRight, cropBottom, zoom, zoomOrigin, panX, panY } = settings
-    const imageFitMode = settings.fitMode ?? fitMode
-    const isFit = imageFitMode === 'fit'
-
-    const sx0 = cropLeft * imgW
-    const sy0 = cropTop * imgH
-    const sw0 = Math.max(1, (1 - cropLeft - cropRight) * imgW)
-    const sh0 = Math.max(1, (1 - cropTop - cropBottom) * imgH)
-
-    const { sx, sy, visibleW, visibleH } = applyZoomToCropBox(sx0, sy0, sw0, sh0, zoom, zoomOrigin, panX, panY, imgW, imgH)
+    const rect = getSourceRect(img, settings)
+    if (!rect) return
+    const { sx, sy, visibleW, visibleH } = rect
+    const isFit = (settings.fitMode ?? fitMode) === 'fit'
 
     const innerX = x + padding
     const innerY = y + padding
@@ -505,16 +479,7 @@ function drawMergedCanvas(canvas, imageElements, width, height, layout, colsPerR
         roundRect(innerX, innerY, innerW, innerH, Math.max(0, borderRadius - 2))
         ctx.clip()
       }
-      if (isFit) {
-        ctx.drawImage(img, sx, sy, visibleW, visibleH, innerX, innerY, innerW, innerH)
-      } else {
-        const scaleFill = Math.max(innerW / visibleW, innerH / visibleH)
-        const drawW = visibleW * scaleFill
-        const drawH = visibleH * scaleFill
-        const drawX = innerX + (innerW - drawW) / 2
-        const drawY = innerY + (innerH - drawH) / 2
-        ctx.drawImage(img, sx, sy, visibleW, visibleH, drawX, drawY, drawW, drawH)
-      }
+      drawImageInCell(ctx, img, sx, sy, visibleW, visibleH, innerX, innerY, innerW, innerH, isFit)
       if (roundRect && borderRadius > 0) ctx.restore()
     }
 
